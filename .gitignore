@@ -1,0 +1,29 @@
+# Python virtual environment
+venv/Include/
+venv/Lib/
+venv/Scripts/
+venv/__pycache__/
+venv/.gitignore
+venv/pyvenv.cfg
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+
+# Generated manufacturing files
+*.gcode
+*.bgcode
+
+# Temporary files
+*.tmp
+*.temp
+
+# IDE / editor
+.vscode/
+.idea/
+
+# Environment secrets
+.env
+.env.*
+!.env.example
