@@ -13,6 +13,10 @@ PRUSA_SLICER = Path(
     r"C:\Program Files\Prusa3D\PrusaSlicer\prusa-slicer-console.exe"
 )
 
+PRINTER_PROFILE = "Pragma Generic FFF"
+PRINT_PROFILE = "Pragma Generic FFF"
+MATERIAL_PROFILE = "Pragma Generic FFF"
+
 STL_FILE = Path(
     r"C:\Freelancing\Websites\Pragma\Content"
     r"\pragma_test_washer_40x10x8mm.stl"
@@ -40,6 +44,9 @@ def validate_files():
             f"STL file not found: {STL_FILE}"
         )
 
+    if STL_FILE.stat().st_size == 0:
+        raise ValueError("STL file is empty.")
+
 
 # --------------------------------------------------
 # STEP 2: RUN PRUSASLICER FROM PYTHON
@@ -47,15 +54,33 @@ def validate_files():
 
 def run_slicer():
 
+    GCODE_FILE.parent.mkdir(parents=True, exist_ok=True)
+
+    # Remove previous output to prevent false success
+    if GCODE_FILE.exists():
+        GCODE_FILE.unlink()
+
     command = [
         str(PRUSA_SLICER),
+
+        "--printer-profile",
+        PRINTER_PROFILE,
+
+        "--print-profile",
+        PRINT_PROFILE,
+
+        "--material-profile",
+        MATERIAL_PROFILE,
+
         "--slice",
+
         "--output",
         str(GCODE_FILE),
+
         str(STL_FILE)
     ]
 
-    print("Launching PrusaSlicer from Python...")
+    print("Launching PrusaSlicer with configured profiles...")
     print("-" * 50)
 
     result = subprocess.run(
@@ -80,6 +105,11 @@ def run_slicer():
     if not GCODE_FILE.exists():
         raise RuntimeError(
             "Slicer completed but G-code file was not created."
+        )
+
+    if GCODE_FILE.stat().st_size == 0:
+        raise RuntimeError(
+            "PrusaSlicer generated an empty G-code file."
         )
 
     print("G-code successfully generated!")
@@ -132,6 +162,37 @@ def extract_metadata():
             else:
                 metadata[key] = float(value)
 
+    # Validate required manufacturing metadata
+    required_fields = [
+        "filament_length_mm",
+        "filament_volume_cm3",
+        "filament_weight_g",
+        "filament_cost",
+        "print_time"
+    ]
+
+    missing_fields = [
+        field for field in required_fields
+        if field not in metadata
+    ]
+
+    if missing_fields:
+        raise RuntimeError(
+            f"Missing G-code metadata: {missing_fields}"
+        )
+
+    if metadata["filament_weight_g"] <= 0:
+        raise RuntimeError(
+            "Invalid filament weight. "
+            "PrusaSlicer returned zero grams."
+        )
+
+    if metadata["filament_cost"] <= 0:
+        raise RuntimeError(
+            "Invalid filament cost. "
+            "PrusaSlicer returned zero cost."
+        )
+
     return metadata
 
 
@@ -154,6 +215,11 @@ def main():
             "engine": "PrusaSlicer",
             "input_file": STL_FILE.name,
             "output_file": str(GCODE_FILE),
+            "profiles": {
+                "printer": PRINTER_PROFILE,
+                "print": PRINT_PROFILE,
+                "material": MATERIAL_PROFILE
+            },
             "manufacturing_data": metadata
         }
 
