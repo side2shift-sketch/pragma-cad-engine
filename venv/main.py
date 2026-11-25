@@ -10,6 +10,7 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from starlette.concurrency import run_in_threadpool
 
 from slicer_engine import slice_stl
+from cost_engine import estimate_cost
 
 
 app = FastAPI(
@@ -362,7 +363,12 @@ async def analyze_print(file: UploadFile = File(...)):
                 gcode_path
             )
 
-            # 6. Return manufacturing results
+            # 6. Calculate manufacturing cost
+            cost_estimate = estimate_cost(
+                slicer_result["manufacturing_data"]
+            )
+
+            # 7. Return manufacturing results
             return {
                 "status": "success",
                 "filename": filename,
@@ -373,7 +379,8 @@ async def analyze_print(file: UploadFile = File(...)):
                 "format": "STL",
                 "engine": slicer_result["engine"],
                 "gcode_generated": slicer_result["gcode_generated"],
-                "manufacturing_data": slicer_result["manufacturing_data"]
+                "manufacturing_data": slicer_result["manufacturing_data"],
+                "cost_estimate": cost_estimate
             }
 
     except HTTPException:
